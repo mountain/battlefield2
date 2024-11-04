@@ -48,24 +48,38 @@ class Conv2D:
         self.kernel_size = kernel_size
         self.stride = stride
         self.padding = padding
-        self.weights = [[[random.uniform(-1, 1) for _ in range(kernel_size)] for _ in range(kernel_size)] for _ in range(out_channels)]
+        self.weights = [
+            [
+                [[random.uniform(-1, 1) for _ in range(kernel_size)] for _ in range(kernel_size)]
+                for _ in range(in_channels)
+            ]
+            for _ in range(out_channels)
+        ]
         self.biases = [random.uniform(-1, 1) for _ in range(out_channels)]
+        self.output = None
 
     def get_parameters(self):
-        return [w for kernel in self.weights for row in kernel for w in row] + self.biases
+        return [w for kernel in self.weights for channel in kernel for row in channel for w in row] + self.biases
 
     def set_parameters(self, flat_parameters):
         weight_count = self.out_channels * self.in_channels * self.kernel_size * self.kernel_size
         weights_flat = flat_parameters[:weight_count]
-        biases = flat_parameters[weight_count:]
+        biases = flat_parameters[weight_count:weight_count + self.out_channels]
 
         self.weights = [
             [
-                [weights_flat[i * self.kernel_size + j] for j in range(self.kernel_size)]
-                for i in range(self.kernel_size)
+                [
+                    [weights_flat[i * self.kernel_size * self.kernel_size + j * self.kernel_size + k]
+                     for k in range(self.kernel_size)]
+                    for j in range(self.kernel_size)
+                ]
+                for i in range(self.in_channels)
             ]
             for _ in range(self.out_channels)
         ]
+
+        if len(biases) != self.out_channels:
+            raise ValueError(f"Biases length {len(biases)} does not match out_channels {self.out_channels}")
         self.biases = biases
 
     def forward(self, inputs):
@@ -73,7 +87,6 @@ class Conv2D:
         out_H = (H - self.kernel_size + 2 * self.padding) // self.stride + 1
         out_W = (W - self.kernel_size + 2 * self.padding) // self.stride + 1
 
-        # Use list comprehension to create padded_input
         padded_input = (
             [[[0 for _ in range(C)] for _ in range(W + 2 * self.padding)] for _ in range(H + 2 * self.padding)]
             if self.padding > 0
@@ -86,27 +99,24 @@ class Conv2D:
                     for k in range(C):
                         padded_input[i + self.padding][j + self.padding][k] = inputs[i][j][k]
 
-        # Initialize output using list comprehension
-        output = [[[0 for _ in range(self.out_channels)] for _ in range(out_W)] for _ in range(out_H)]
+        if self.output is None:
+            self.output = [[[0 for _ in range(self.out_channels)] for _ in range(out_W)] for _ in range(out_H)]
 
         for out_c in range(self.out_channels):
-            output[:, :, out_c] = [
-                [
-                    relu(
+            for i in range(out_H):
+                for j in range(out_W):
+                    self.output[i][j][out_c] = relu(
                         self.biases[out_c]
                         + sum(
-                            self.weights[out_c][ki][kj] * padded_input[i * self.stride + ki][j * self.stride + kj][in_c]
+                            self.weights[out_c][in_c][ki][kj] * padded_input[i * self.stride + ki][j * self.stride + kj][in_c]
                             for ki in range(self.kernel_size)
                             for kj in range(self.kernel_size)
                             for in_c in range(self.in_channels)
                         )
                     )
-                    for j in range(out_W)
-                ]
-                for i in range(out_H)
-            ]
 
-        return output
+        return self.output
+
 
 
 class Linear:
@@ -179,12 +189,12 @@ class NeuralNetwork:
 
 policy = NeuralNetwork(input_size=12, hidden_size=24, output_size=2)
 policy.set_parameters(decompress_floats(
-    "%s"
+"%s"
 ))
 
 encoder = GlobalCNN()
 encoder.set_parameters(decompress_floats(
-    "%s"
+"%s"
 ))
 
 

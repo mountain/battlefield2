@@ -2,7 +2,7 @@ from zb.db import rc
 from rq.decorators import job
 
 
-TIMEOUT = 30
+TIMEOUT = 90
 diversity = int(rc.get('board:diversity')) if rc.exists('board:diversity') else 1000
 
 
