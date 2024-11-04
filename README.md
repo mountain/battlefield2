@@ -1,8 +1,8 @@
-# nn-bot: an evolutionary neural-network bot playing Robot Rumble games
+# zot-bot
 
-The idea of zot-bot is to evolve the bot by itself.
+An evolutionary neural-network bot playing Robot Rumble games
 
-To run the python code, you need creat a symbol link to rumblebot in the project root.
+To run the python code, you need download rumblebot and creat a symbol link to rumblebot in the project root.
 
 ## how to run
 
