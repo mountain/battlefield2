@@ -26,10 +26,9 @@ def base62_decode(encoded: str) -> bytes:
 
 
 def compress_floats(float_list):
-    quantized = [int((f + 1) * 32767.5) for f in float_list]  # 转换为 0-65535 (16位)
+    quantized = [int((f + 1) * 32767.5) for f in float_list]
     byte_data = struct.pack('>' + 'H' * len(quantized), *quantized)
-    encoded_data = base62_encode(byte_data)
-    return encoded_data
+    return base62_encode(byte_data)
 
 
 def decompress_floats(encoded_data):
@@ -53,13 +52,17 @@ class Conv2D:
                         range(out_channels)]
         self.biases = [random.uniform(-1, 1) for _ in range(out_channels)]
 
-    def get_weights(self):
+    def get_parameters(self):
         return [w for kernel in self.weights for row in kernel for w in row] + self.biases
 
-    def set_weights(self, weights, biases):
+    def set_parameters(self, flat_parameters):
+        weight_count = self.out_channels * self.in_channels * self.kernel_size * self.kernel_size
+        weights_flat = flat_parameters[:weight_count]
+        biases = flat_parameters[weight_count:]
+
         self.weights = [
             [
-                [weights[i * self.kernel_size + j] for j in range(self.kernel_size)]
+                [weights_flat[i * self.kernel_size + j] for j in range(self.kernel_size)]
                 for i in range(self.kernel_size)
             ]
             for _ in range(self.out_channels)
@@ -96,28 +99,6 @@ class Conv2D:
         return output
 
 
-class MaxPool2D:
-    def __init__(self, kernel_size=2, stride=2):
-        self.kernel_size = kernel_size
-        self.stride = stride
-
-    def forward(self, inputs):
-        H, W, C = len(inputs), len(inputs[0]), len(inputs[0][0])
-        out_H = H // self.stride
-        out_W = W // self.stride
-        output = [[[0 for _ in range(C)] for _ in range(out_W)] for _ in range(out_H)]
-
-        for c in range(C):
-            for i in range(out_H):
-                for j in range(out_W):
-                    max_value = -float('inf')
-                    for ki in range(self.kernel_size):
-                        for kj in range(self.kernel_size):
-                            max_value = max(max_value, inputs[i * self.stride + ki][j * self.stride + kj][c])
-                    output[i][j][c] = max_value
-        return output
-
-
 class Linear:
     def __init__(self, input_size, output_size, activation):
         self.weights = [[random.uniform(-1, 1) for _ in range(input_size)] for _ in range(output_size)]
@@ -130,13 +111,18 @@ class Linear:
             for weights, bias in zip(self.weights, self.biases)
         ]
 
-    def get_weights(self):
+    def get_parameters(self):
         return [w for row in self.weights for w in row] + self.biases
 
-    def set_weights(self, weights, biases):
-        if len(weights) != len(self.weights) or len(biases) != len(self.biases):
-            raise ValueError("Weights or biases dimensions do not match layer dimensions")
-        self.weights = weights
+    def set_parameters(self, flat_parameters):
+        weight_count = len(self.weights) * len(self.weights[0])
+        weights_flat = flat_parameters[:weight_count]
+        biases = flat_parameters[weight_count:]
+
+        self.weights = [
+            weights_flat[i * len(self.weights[0]):(i + 1) * len(self.weights[0])]
+            for i in range(len(self.weights))
+        ]
         self.biases = biases
 
 
@@ -147,17 +133,15 @@ class GlobalCNN:
         self.fc = Linear(4 * 4 * 4, 4, relu)
 
     def get_parameters(self):
-        return self.conv1.get_weights() + self.conv2.get_weights() + self.fc.get_weights()
+        return self.conv1.get_parameters() + self.conv2.get_parameters() + self.fc.get_parameters()
 
-    def set_parameters(self, weights):
-        conv1_weights = weights[:40]
-        self.conv1.set_weights(conv1_weights[:36], conv1_weights[36:40])
+    def set_parameters(self, parameters):
+        conv1_param_count = len(self.conv1.get_parameters())
+        conv2_param_count = len(self.conv2.get_parameters())
 
-        conv2_weights = weights[40:148]
-        self.conv2.set_weights(conv2_weights[:144], conv2_weights[144:148])
-
-        fc_weights = weights[148:]
-        self.fc.set_weights(fc_weights[:64 * 4], fc_weights[64 * 4:])
+        self.conv1.set_parameters(parameters[:conv1_param_count])
+        self.conv2.set_parameters(parameters[conv1_param_count:conv1_param_count + conv2_param_count])
+        self.fc.set_parameters(parameters[conv1_param_count + conv2_param_count:])
 
     def forward(self, x):
         x = self.conv1.forward(x)
@@ -175,28 +159,12 @@ class NeuralNetwork:
         return self.output_layer.forward(self.hidden_layer.forward(inputs))
 
     def get_parameters(self):
-        return self.hidden_layer.get_weights() + self.output_layer.get_weights()
+        return self.hidden_layer.get_parameters() + self.output_layer.get_parameters()
 
     def set_parameters(self, parameters):
-        hidden_weight_size = len(self.hidden_layer.weights) * len(self.hidden_layer.weights[0])
-        hidden_bias_size = len(self.hidden_layer.biases)
-
-        hidden_weights = [parameters[i:i + len(self.hidden_layer.weights[0])] for i in
-                          range(0, hidden_weight_size, len(self.hidden_layer.weights[0]))]
-        hidden_biases = parameters[hidden_weight_size:hidden_weight_size + hidden_bias_size]
-
-        self.hidden_layer.set_weights(hidden_weights, hidden_biases)
-
-        output_weight_size = len(self.output_layer.weights) * len(self.output_layer.weights[0])
-        output_bias_size = len(self.output_layer.biases)
-
-        output_weights = [parameters[i:i + len(self.output_layer.weights[0])] for i in
-                          range(hidden_weight_size + hidden_bias_size,
-                                hidden_weight_size + hidden_bias_size + output_weight_size,
-                                len(self.output_layer.weights[0]))]
-        output_biases = parameters[-output_bias_size:]
-
-        self.output_layer.set_weights(output_weights, output_biases)
+        hidden_param_count = len(self.hidden_layer.get_parameters())
+        self.hidden_layer.set_parameters(parameters[:hidden_param_count])
+        self.output_layer.set_parameters(parameters[hidden_param_count:])
 
 
 policy = NeuralNetwork(input_size=12, hidden_size=24, output_size=2)

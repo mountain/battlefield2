@@ -162,7 +162,7 @@ def peek(bid):
 def poke(bid):
     from zb.bot import Bot, tmpl
     bot = Bot.fetch(bid)
-    code = (tmpl.replace('%', '%%').replace('%%s', '%s') % (bot.robo)).strip()
+    code = (tmpl.replace('%', '%%').replace('%%s', '%s') % (bot.policy, bot.encoder)).strip()
     print('-----------------------------------------')
     print('code                       length: %06d' % len(code))
     print('-----------------------------------------')
