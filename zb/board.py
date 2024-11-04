@@ -2,7 +2,7 @@ from zb.db import rc
 from rq.decorators import job
 
 
-TIMEOUT = 20
+TIMEOUT = 30
 diversity = int(rc.get('board:diversity')) if rc.exists('board:diversity') else 1000
 
 
@@ -137,7 +137,7 @@ def teach(student_id, teacher, teacher_file):
             pass
 
 
-@job('exam', connection=rc, timeout=TIMEOUT+1)
+@job('exam', connection=rc, timeout=4 * TIMEOUT+1)
 def exam(student_id):
     teach(student_id, 'simple-bot', 'robots/simple-bot.js')
     teach(student_id, 'random-bot', 'robots/random-bot.js')
