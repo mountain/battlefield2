@@ -6,8 +6,7 @@ from zb.db import rc
 
 
 BASE62_ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
-LENGTH_POLICY = 12 * 24 + 24 + 24 * 2 + 2
-LENGTH_ENCODER = (1 * 3 * 3 * 4 + 4) + (4 * 3 * 3 * 4 + 4) + (4 * 4 * 4 * 4 + 4)
+LENGTH_POLICY = 354
 
 
 with open('template/zot-bot.py') as zs:
@@ -55,13 +54,12 @@ class Bot:
             pass
         if type(bid) is int:
             policy = rc.get('bot:%06d:policy' % int(bid)).decode('utf8')
-            encoder = rc.get('bot:%06d:encoder' % int(bid)).decode('utf8')
-            return cls(bid, policy, encoder)
+            return cls(bid, policy)
         else:
-            return cls(bid, None, None)
+            return cls(bid, None)
 
     @classmethod
-    def create(cls, policy, encoder):
+    def create(cls, policy):
         if not rc.exists('serials:bot'):
             rc.set('serials:bot', 0)
 
@@ -70,21 +68,18 @@ class Bot:
             raise Exception(bid)
 
         rc.set('bot:%06d:policy' % int(bid), policy)
-        rc.set('bot:%06d:encoder' % int(bid), encoder)
         rc.zadd('board', {bid: 20})
-        return cls(bid, policy, encoder)
+        return cls(bid, policy)
 
     @classmethod
     def next(cls):
         policy = compress_floats([random.uniform(-1, 1) for _ in range(LENGTH_POLICY)])
-        encoder = compress_floats([random.uniform(-1, 1) for _ in range(LENGTH_ENCODER)])
-        return Bot.create(policy, encoder)
+        return Bot.create(policy)
 
-    def __init__(self, bid, policy, encoder):
+    def __init__(self, bid, policy):
         self.bid = bid
         if type(bid) == int:
             self.policy = policy
-            self.encoder = encoder
             self.path = 'robots/%06d.py' % self.bid
         else:
             self.path = './robots/%s.py' % bid
@@ -92,7 +87,7 @@ class Bot:
     def dump(self):
         if type(self.bid) == int:
             with open(self.path, mode='w') as tf:
-                tf.write(tmpl % (self.policy, self.encoder))
+                tf.write(tmpl % (self.policy))
                 tf.flush()
         return self.path
 
@@ -109,8 +104,7 @@ class Bot:
             return compress_floats(seq)
 
         policy = mutate_seq(self.policy)
-        encoder = mutate_seq(self.encoder)
-        Bot.create(policy, encoder)
+        Bot.create(policy)
 
     def crossover(self, other):
         def crossover_seq(seq1, seq2):
@@ -122,8 +116,7 @@ class Bot:
             return compress_floats(seq1)
 
         policy = crossover_seq(self.policy, other.policy)
-        encoder = crossover_seq(self.encoder, other.encoder)
-        Bot.create(policy, encoder)
+        Bot.create(policy)
 
     def swallow(self, other):
         def swallow_seq(seq1, seq2):
@@ -136,5 +129,4 @@ class Bot:
             return compress_floats(seq1)
 
         policy = swallow_seq(self.policy, other.policy)
-        encoder = swallow_seq(self.encoder, other.encoder)
-        Bot.create(policy, encoder)
+        Bot.create(policy)

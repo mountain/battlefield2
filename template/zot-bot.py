@@ -118,7 +118,6 @@ class Conv2D:
         return self.output
 
 
-
 class Linear:
     def __init__(self, input_size, output_size, activation):
         self.weights = [[random.uniform(-1, 1) for _ in range(input_size)] for _ in range(output_size)]
@@ -148,9 +147,9 @@ class Linear:
 
 class GlobalCNN:
     def __init__(self):
-        self.conv1 = Conv2D(1, 4, kernel_size=3, stride=2, padding=1)
+        self.conv1 = Conv2D(2, 4, kernel_size=3, stride=2, padding=1)
         self.conv2 = Conv2D(4, 4, kernel_size=3, stride=2, padding=1)
-        self.fc = Linear(4 * 4 * 4, 4, relu)
+        self.fc = Linear(4 * 4 * 4, 2, relu)
 
     def get_parameters(self):
         return self.conv1.get_parameters() + self.conv2.get_parameters() + self.fc.get_parameters()
@@ -170,30 +169,8 @@ class GlobalCNN:
         return self.fc.forward(x)
 
 
-class NeuralNetwork:
-    def __init__(self, input_size, hidden_size, output_size):
-        self.hidden_layer = Linear(input_size, hidden_size, activation=lambda x: math.tanh(x))
-        self.output_layer = Linear(hidden_size, output_size, activation=lambda x: math.tanh(x))
-
-    def forward(self, inputs):
-        return self.output_layer.forward(self.hidden_layer.forward(inputs))
-
-    def get_parameters(self):
-        return self.hidden_layer.get_parameters() + self.output_layer.get_parameters()
-
-    def set_parameters(self, parameters):
-        hidden_param_count = len(self.hidden_layer.get_parameters())
-        self.hidden_layer.set_parameters(parameters[:hidden_param_count])
-        self.output_layer.set_parameters(parameters[hidden_param_count:])
-
-
-policy = NeuralNetwork(input_size=12, hidden_size=24, output_size=2)
+policy = GlobalCNN()
 policy.set_parameters(decompress_floats(
-"%s"
-))
-
-encoder = GlobalCNN()
-encoder.set_parameters(decompress_floats(
 "%s"
 ))
 
@@ -205,26 +182,23 @@ def health_by_coords(state, coord):
     return 0
 
 
-_cached_input_grid = [[[0] for _ in range(19)] for _ in range(19)]
+_cached_input_grid = [[[0, 0] for _ in range(19)] for _ in range(19)]
 
 
-def encode_global(state):
+def analysis(state, unit):
     global _cached_input_grid
     for x in range(19):
         for y in range(19):
             _cached_input_grid[x][y][0] = health_by_coords(state, Coords(x, y))
+            _cached_input_grid[x][y][1] = 1 if x == unit.coords.x and y == unit.coords.y else 0
 
-    return encoder.forward(_cached_input_grid)
+    return [
+        math.tanh(x) for x in policy.forward(_cached_input_grid)
+    ]
 
 
 def robot(state, unit):
-    inputs = [float(unit.coords.x) / 18, float(unit.coords.y) / 18] + [
-        health_by_coords(state, coord) for coord in unit.coords.coords_around()
-    ] + [
-        math.tanh(x) for x in encode_global(state)
-    ]
-
-    output = policy.forward(inputs)
+    output = analysis(state, unit)
     action_value, direction_value = output[:2]
     action_value, direction_value = (1 + action_value) / 2, (1 + direction_value) / 2
 
