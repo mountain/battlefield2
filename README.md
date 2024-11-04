@@ -1,6 +1,6 @@
 # zot-bot
 
-An evolutionary neural-network bot playing Robot Rumble games
+An evolutionary neural-network bot playing [Robot Rumble games](https://robotrumble.org/)
 
 To run the python code, you need download rumblebot and create a symbol link to rumblebot in the project root.
 
