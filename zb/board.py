@@ -97,8 +97,8 @@ def teach(student_id, teacher, teacher_file):
 
     try:
         blue = Bot.fetch(student_id)
-        rc.setnx('exam:%06d:%06d' % (student_id, teacher), 0)
-        rc.setnx('exam:%06d:%06d' % (teacher, student_id), 0)
+        rc.setnx('exam:%06d:%s' % (student_id, teacher), 0)
+        rc.setnx('exam:%s:%06d' % (teacher, student_id), 0)
 
         bfile, rfile = blue.dump(), teacher_file
         p = subprocess.run(['./rumblebot', 'run', 'term', bfile, rfile], capture_output=True, text=True, timeout=TIMEOUT)
@@ -110,10 +110,10 @@ def teach(student_id, teacher, teacher_file):
             rc.zincrby('board', 0, student_id)
         elif result.find('Done! Blue won') > -1:
             rc.zincrby('board', 1, student_id)
-            rc.incr('exam:%06d:%06d' % (student_id, teacher), 1)
+            rc.incr('exam:%06d:%s' % (student_id, teacher), 1)
             blue.mutate()
         elif result.find('Done! Red won') > -1:
-            rc.incr('exam:%06d:%06d' % (teacher, student_id), 1)
+            rc.incr('exam:%s:%06d' % (teacher, student_id), 1)
     except Exception as e:
         import traceback
         import sys
