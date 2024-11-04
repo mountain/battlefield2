@@ -48,8 +48,7 @@ class Conv2D:
         self.kernel_size = kernel_size
         self.stride = stride
         self.padding = padding
-        self.weights = [[[random.uniform(-1, 1) for _ in range(kernel_size)] for _ in range(kernel_size)] for _ in
-                        range(out_channels)]
+        self.weights = [[[random.uniform(-1, 1) for _ in range(kernel_size)] for _ in range(kernel_size)] for _ in range(out_channels)]
         self.biases = [random.uniform(-1, 1) for _ in range(out_channels)]
 
     def get_parameters(self):
@@ -73,29 +72,40 @@ class Conv2D:
         H, W, C = len(inputs), len(inputs[0]), len(inputs[0][0])
         out_H = (H - self.kernel_size + 2 * self.padding) // self.stride + 1
         out_W = (W - self.kernel_size + 2 * self.padding) // self.stride + 1
-        output = [[[0 for _ in range(self.out_channels)] for _ in range(out_W)] for _ in range(out_H)]
 
-        padded_input = inputs
+        # Use list comprehension to create padded_input
+        padded_input = (
+            [[[0 for _ in range(C)] for _ in range(W + 2 * self.padding)] for _ in range(H + 2 * self.padding)]
+            if self.padding > 0
+            else inputs
+        )
+
         if self.padding > 0:
-            padded_input = [[[0 for _ in range(C)] for _ in range(W + 2 * self.padding)] for _ in
-                            range(H + 2 * self.padding)]
             for i in range(H):
                 for j in range(W):
                     for k in range(C):
                         padded_input[i + self.padding][j + self.padding][k] = inputs[i][j][k]
 
+        # Initialize output using list comprehension
+        output = [[[0 for _ in range(self.out_channels)] for _ in range(out_W)] for _ in range(out_H)]
+
         for out_c in range(self.out_channels):
-            for i in range(out_H):
-                for j in range(out_W):
-                    sum_value = self.biases[out_c]
-                    for ki in range(self.kernel_size):
-                        for kj in range(self.kernel_size):
-                            for in_c in range(self.in_channels):
-                                sum_value += (
-                                        self.weights[out_c][ki][kj] *
-                                        padded_input[i * self.stride + ki][j * self.stride + kj][in_c]
-                                )
-                    output[i][j][out_c] = relu(sum_value)
+            output[:, :, out_c] = [
+                [
+                    relu(
+                        self.biases[out_c]
+                        + sum(
+                            self.weights[out_c][ki][kj] * padded_input[i * self.stride + ki][j * self.stride + kj][in_c]
+                            for ki in range(self.kernel_size)
+                            for kj in range(self.kernel_size)
+                            for in_c in range(self.in_channels)
+                        )
+                    )
+                    for j in range(out_W)
+                ]
+                for i in range(out_H)
+            ]
+
         return output
 
 
@@ -185,9 +195,16 @@ def health_by_coords(state, coord):
     return 0
 
 
+_cached_input_grid = [[[0] for _ in range(19)] for _ in range(19)]
+
+
 def encode_global(state):
-    input_grid = [[[health_by_coords(state, Coords(x, y))] for y in range(19)] for x in range(19)]
-    return encoder.forward(input_grid)
+    global _cached_input_grid
+    for x in range(19):
+        for y in range(19):
+            _cached_input_grid[x][y][0] = health_by_coords(state, Coords(x, y))
+
+    return encoder.forward(_cached_input_grid)
 
 
 def robot(state, unit):
