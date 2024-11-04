@@ -14,6 +14,30 @@ pip3 install redis rq rq-dashboard sh
 ln -s RUMBLEBOT PROJ_DIR
 ```
 
+initialize the genetic pool with size of 1000
+
+```bash
+zb init -n 1000
+```
+
+start the workers
+
+```bash
+zb worker -t match -n 10
+```
+
+execute the genetic evolution
+
+```bash
+zb run -n 10000
+```
+
+report the first 10 seeds
+
+```bash
+zb report -n 10
+```
+
 ### commands
 
 #### init 
