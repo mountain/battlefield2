@@ -91,21 +91,17 @@ def match():
             pass
 
 
-@job('exam', connection=rc, timeout=TIMEOUT+1)
-def exam(student_id):
+def teach(student_id, teacher, teacher_file):
     import subprocess
     from zb.bot import Bot
 
     try:
         blue = Bot.fetch(student_id)
-        rc.setnx('exam:%06d:random-bot' % student_id, 0)
-        rc.setnx('exam:random-bot:%06d' % student_id, 0)
-        rc.setnx('exam:%06d:chaser' % student_id, 0)
-        rc.setnx('exam:chaser:%06d' % student_id, 0)
+        rc.setnx('exam:%06d:%06d' % (student_id, teacher), 0)
+        rc.setnx('exam:%06d:%06d' % (teacher, student_id), 0)
 
-        bfile, rfile = blue.dump(), 'robots/random-bot.js'
-        p = subprocess.run(['./rumblebot', 'run', 'term', bfile, rfile], capture_output=True, text=True,
-                           timeout=TIMEOUT, cwd='.')
+        bfile, rfile = blue.dump(), teacher_file
+        p = subprocess.run(['./rumblebot', 'run', 'term', bfile, rfile], capture_output=True, text=True, timeout=TIMEOUT)
         if p.stdout:
             result = p.stdout
         else:
@@ -114,27 +110,10 @@ def exam(student_id):
             rc.zincrby('board', 0, student_id)
         elif result.find('Done! Blue won') > -1:
             rc.zincrby('board', 1, student_id)
-            rc.incr('exam:%06d:random-bot' % student_id, 1)
+            rc.incr('exam:%06d:%06d' % (student_id, teacher), 1)
             blue.mutate()
         elif result.find('Done! Red won') > -1:
-            rc.incr('exam:random-bot:%06d' % student_id, 1)
-
-        bfile, rfile = blue.dump(), 'robots/chaser.js'
-        p = subprocess.run(['./rumblebot', 'run', 'term', bfile, rfile], capture_output=True, text=True,
-                           timeout=TIMEOUT, cwd='.')
-        if p.stdout:
-            result = p.stdout
-        else:
-            # raise Exception(p.stderr)
-            pass
-        if result.find('Done! it was a tie') > -1:
-            rc.zincrby('board', 0, student_id)
-        elif result.find('Done! Blue won') > -1:
-            rc.zincrby('board', 8, student_id)
-            rc.incr('exam:%06d:chaser' % student_id, 1)
-            blue.mutate()
-        elif result.find('Done! Red won') > -1:
-            rc.incr('exam:chaser:%06d' % student_id, 1)
+            rc.incr('exam:%06d:%06d' % (teacher, student_id), 1)
     except Exception as e:
         import traceback
         import sys
@@ -158,14 +137,25 @@ def exam(student_id):
             pass
 
 
+@job('exam', connection=rc, timeout=TIMEOUT+1)
+def exam(student_id):
+    teach(student_id, 'simple-bot', 'robots/simple-bot.js')
+    teach(student_id, 'random-bot', 'robots/random-bot.js')
+    teach(student_id, 'flail', 'robots/flail.js')
+    teach(student_id, 'chaser', 'robots/chaser.js')
+
+
 def peek(bid):
     from zb.bot import Bot
     bot = Bot.fetch(bid)
     print('-----------------------------------------')
     print('bid: %06d' % bid)
     print('-----------------------------------------')
-    print('robo')
-    print(bot.robo)
+    print('policy')
+    print(bot.policy)
+    print('-----------------------------------------')
+    print('encoder')
+    print(bot.encoder)
     print('-----------------------------------------')
 
 
