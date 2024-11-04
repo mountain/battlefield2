@@ -1,0 +1,18 @@
+#!/bin/bash
+#
+# A wrapper
+#
+
+ORG=`pwd`
+CUR="${BASH_SOURCE[0]}";
+if([ -h "${CUR}" ]) then
+  while([ -h "${CUR}" ]) do CUR=`readlink "${CUR}"`; done
+fi
+pushd . > /dev/null
+cd $(dirname "${CUR}") > /dev/null || exit
+CUR=$(pwd);
+popd > /dev/null || exit
+
+cd "${CUR}"/../ || exit
+python3 -m zb.zb "${@:1}"
+cd "${ORG}" || exit

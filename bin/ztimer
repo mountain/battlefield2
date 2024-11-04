@@ -1,0 +1,25 @@
+#!/bin/bash
+#
+# A wrapper
+#
+
+ORG=`pwd`
+CUR="${BASH_SOURCE[0]}";
+if([ -h "${CUR}" ]) then
+  while([ -h "${CUR}" ]) do CUR=`readlink "${CUR}"`; done
+fi
+pushd . > /dev/null
+cd $(dirname "${CUR}") > /dev/null || exit
+CUR=$(pwd);
+popd > /dev/null || exit
+
+settimer() {
+    for x in $(seq 144000); do ${CUR}/zb run -n 10; sleep 20; done
+}
+
+cd "${CUR}"/../ || exit
+settimer
+cd "${ORG}" || exit
+
+
+
