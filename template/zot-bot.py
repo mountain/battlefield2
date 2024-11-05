@@ -87,7 +87,7 @@ class Linear:
     def set_parameters(self, parameters):
         for i in range(self.output_size):
             for j in range(self.input_size):
-                self.weights[i, j] = parameters[i * self.input_size + j]
+                self.weights[i][j] = parameters[i * self.input_size + j]
         self.biases = parameters[self.input_size * self.output_size:]
 
 
@@ -107,7 +107,7 @@ class NeuralNetwork:
         input_length = len(self.input_layer.get_parameters())
         hidden_length = len(self.hidden_layer.get_parameters())
         self.input_layer.set_parameters(parameters[:input_length])
-        self.hidden_length.set_parameters(parameters[input_length:input_length + hidden_length])
+        self.hidden_layer.set_parameters(parameters[input_length:input_length + hidden_length])
         self.output_layer.set_parameters(parameters[input_length + hidden_length:])
 
 
