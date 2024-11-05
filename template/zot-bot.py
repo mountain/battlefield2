@@ -3,6 +3,7 @@ import math
 import hashlib
 import struct
 
+
 BASE62_ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 
 
@@ -45,11 +46,34 @@ def fingerprint(float_list):
     return fingerprint
 
 
-class Layer:
+def leaky_relu(x, alpha=0.01):
+    return x if x > 0 else alpha * x
+
+
+def softmax(values):
+    exp_values = [math.exp(v) for v in values]
+    sum_exp_values = sum(exp_values)
+    probabilities = [v / sum_exp_values for v in exp_values]
+    return probabilities
+
+
+def argmax(values):
+    max_index = 0
+    max_value = values[0]
+    for i in range(1, len(values)):
+        if values[i] > max_value:
+            max_value = values[i]
+            max_index = i
+    return max_index
+
+
+class Linear:
     def __init__(self, input_size, output_size, activation):
+        self.input_size = input_size
+        self.output_size = output_size
+        self.activation = activation
         self.weights = [[random.uniform(-1, 1) for _ in range(input_size)] for _ in range(output_size)]
         self.biases = [random.uniform(-1, 1) for _ in range(output_size)]
-        self.activation = activation
 
     def forward(self, inputs):
         return [
@@ -57,53 +81,40 @@ class Layer:
             for weights, bias in zip(self.weights, self.biases)
         ]
 
-    def get_weights(self):
+    def get_parameters(self):
         return [w for row in self.weights for w in row] + self.biases
 
-    def set_weights(self, weights, biases):
-        if len(weights) != len(self.weights) or len(biases) != len(self.biases):
-            raise ValueError("Weights or biases dimensions do not match layer dimensions")
-        self.weights = weights
-        self.biases = biases
+    def set_parameters(self, parameters):
+        for i in range(self.output_size):
+            for j in range(self.input_size):
+                self.weights[i, j] = parameters[i * self.input_size + j]
+        self.biases = parameters[self.input_size * self.output_size:]
 
 
 class NeuralNetwork:
     def __init__(self, input_size, hidden_size, output_size):
-        self.hidden_layer = Layer(input_size, hidden_size, activation=lambda x: math.tanh(x))
-        self.output_layer = Layer(hidden_size, output_size, activation=lambda x: math.tanh(x))
+        self.input_layer = Linear(input_size, hidden_size, activation=leaky_relu)
+        self.hidden_layer = Linear(hidden_size, hidden_size, activation=leaky_relu)
+        self.output_layer = Linear(hidden_size, output_size, activation=leaky_relu)
 
     def forward(self, inputs):
-        return self.output_layer.forward(self.hidden_layer.forward(inputs))
+        return self.output_layer.forward(self.hidden_layer.forward(self.input_layer.forward(inputs)))
 
     def get_parameters(self):
-        return self.hidden_layer.get_weights() + self.output_layer.get_weights()
+        return self.input_layer.get_parameters() + self.hidden_layer.get_parameters() + self.output_layer.get_parameters()
 
     def set_parameters(self, parameters):
-        hidden_weight_size = len(self.hidden_layer.weights) * len(self.hidden_layer.weights[0])
-        hidden_bias_size = len(self.hidden_layer.biases)
-
-        hidden_weights = [parameters[i:i + len(self.hidden_layer.weights[0])] for i in
-                          range(0, hidden_weight_size, len(self.hidden_layer.weights[0]))]
-        hidden_biases = parameters[hidden_weight_size:hidden_weight_size + hidden_bias_size]
-
-        self.hidden_layer.set_weights(hidden_weights, hidden_biases)
-
-        output_weight_size = len(self.output_layer.weights) * len(self.output_layer.weights[0])
-        output_bias_size = len(self.output_layer.biases)
-
-        output_weights = [parameters[i:i + len(self.output_layer.weights[0])] for i in
-                          range(hidden_weight_size + hidden_bias_size,
-                                hidden_weight_size + hidden_bias_size + output_weight_size,
-                                len(self.output_layer.weights[0]))]
-        output_biases = parameters[-output_bias_size:]
-
-        self.output_layer.set_weights(output_weights, output_biases)
+        input_length = len(self.input_layer.get_parameters())
+        hidden_length = len(self.hidden_layer.get_parameters())
+        self.input_layer.set_parameters(parameters[:input_length])
+        self.hidden_length.set_parameters(parameters[input_length:input_length + hidden_length])
+        self.output_layer.set_parameters(parameters[input_length + hidden_length:])
 
 
-shared_state = [0.0, 0.0, 0.0]
-network = NeuralNetwork(input_size=12, hidden_size=24, output_size=6)
+shared_state = [0.0, 0.0, 0.0, 0.0, 0.0]
+network = NeuralNetwork(input_size=12, hidden_size=24, output_size=12)
 network.set_parameters(decompress_floats(
-"%s"
+    "%s"
 ))
 
 
@@ -125,21 +136,21 @@ def robot(state, unit):
     ] + shared_state
 
     output = network.forward(inputs)
-    action_value, direction_value = output[:2]
-    action_value, direction_value = (1 + math.tanh(action_value)) / 2, (1 + math.tanh(direction_value)) / 2
+    action_value, direction_value, decay_coeff, shared_updates = output[:2], output[2:6], output[7], output[7:]
 
-    memory_decay = (1 + math.tanh(output[2])) / 2
-    shared_updates = output[3:]
+    total_units = len(state.ids_by_team(state.our_team)) + len(state.ids_by_team(state.other_team))
+    memory_decay = (1 + math.tanh(decay_coeff)) * (1 + math.tanh(total_units - 20)) / 4
     shared_state[:] = [
-        math.tanh(memory_decay * s + (1 - memory_decay) * u)
+        math.tanh((1 - memory_decay) * s + memory_decay * u)
         for s, u in zip(shared_state, shared_updates)
     ]
 
-    action_type = ActionType.Move if action_value > 0.5 else ActionType.Attack
-    direction = (
-        Direction.North if direction_value < 0.25 else
-        Direction.South if direction_value < 0.5 else
-        Direction.East if direction_value < 0.75 else
+    action_type = [ActionType.Move, ActionType.Attack][argmax(softmax(action_value))]
+    direction = [
+        Direction.North,
+        Direction.South,
+        Direction.East,
         Direction.West
-    )
+    ][argmax(softmax(direction_value))]
+
     return Action.move(direction) if action_type == ActionType.Move else Action.attack(direction)
