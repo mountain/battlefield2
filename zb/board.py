@@ -91,7 +91,7 @@ def match():
             pass
 
 
-def teach(student_id, teacher, teacher_file):
+def teach(student_id, teacher, teacher_file, reward=1):
     import subprocess
     from zb.bot import Bot
 
@@ -109,9 +109,10 @@ def teach(student_id, teacher, teacher_file):
         if result.find('Done! it was a tie') > -1:
             rc.zincrby('board', 0, student_id)
         elif result.find('Done! Blue won') > -1:
-            rc.zincrby('board', 1, student_id)
+            rc.zincrby('board', reward, student_id)
             rc.incr('exam:%06d:%s' % (student_id, teacher), 1)
-            blue.mutate()
+            for _ in range(reward):
+                blue.mutate()
         elif result.find('Done! Red won') > -1:
             rc.incr('exam:%s:%06d' % (teacher, student_id), 1)
     except Exception as e:
@@ -139,10 +140,10 @@ def teach(student_id, teacher, teacher_file):
 
 @job('exam', connection=rc, timeout=4 * TIMEOUT+1)
 def exam(student_id):
-    teach(student_id, 'simple-bot', 'robots/simple-bot.js')
-    teach(student_id, 'random-bot', 'robots/random-bot.js')
-    teach(student_id, 'flail', 'robots/flail.js')
-    teach(student_id, 'chaser', 'robots/chaser.js')
+    teach(student_id, 'simple-bot', 'robots/simple-bot.js', reward=1)
+    teach(student_id, 'random-bot', 'robots/random-bot.js', reward=2)
+    teach(student_id, 'flail', 'robots/flail.js', reward=3)
+    teach(student_id, 'chaser', 'robots/chaser.js', reward=4)
 
 
 def peek(bid):
