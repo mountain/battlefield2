@@ -6,7 +6,7 @@ from zb.db import rc
 
 
 BASE62_ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
-LENGTH_POLICY = 354
+LENGTH_POLICY = 462
 
 
 with open('template/zot-bot.py') as zs:
