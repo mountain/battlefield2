@@ -3,7 +3,6 @@ import math
 import hashlib
 import struct
 
-
 BASE62_ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 
 
@@ -83,7 +82,8 @@ class NeuralNetwork:
         hidden_weight_size = len(self.hidden_layer.weights) * len(self.hidden_layer.weights[0])
         hidden_bias_size = len(self.hidden_layer.biases)
 
-        hidden_weights = [parameters[i:i+len(self.hidden_layer.weights[0])] for i in range(0, hidden_weight_size, len(self.hidden_layer.weights[0]))]
+        hidden_weights = [parameters[i:i + len(self.hidden_layer.weights[0])] for i in
+                          range(0, hidden_weight_size, len(self.hidden_layer.weights[0]))]
         hidden_biases = parameters[hidden_weight_size:hidden_weight_size + hidden_bias_size]
 
         self.hidden_layer.set_weights(hidden_weights, hidden_biases)
@@ -91,13 +91,16 @@ class NeuralNetwork:
         output_weight_size = len(self.output_layer.weights) * len(self.output_layer.weights[0])
         output_bias_size = len(self.output_layer.biases)
 
-        output_weights = [parameters[i:i+len(self.output_layer.weights[0])] for i in range(hidden_weight_size + hidden_bias_size, hidden_weight_size + hidden_bias_size + output_weight_size, len(self.output_layer.weights[0]))]
+        output_weights = [parameters[i:i + len(self.output_layer.weights[0])] for i in
+                          range(hidden_weight_size + hidden_bias_size,
+                                hidden_weight_size + hidden_bias_size + output_weight_size,
+                                len(self.output_layer.weights[0]))]
         output_biases = parameters[-output_bias_size:]
 
         self.output_layer.set_weights(output_weights, output_biases)
 
 
-shared_state = [0.0, 0.0, 0.0, 0.0]
+shared_state = [0.0, 0.0, 0.0]
 network = NeuralNetwork(input_size=12, hidden_size=24, output_size=6)
 network.set_parameters(decompress_floats(
 "%s"
@@ -110,18 +113,27 @@ def health_by_coords(state, coord):
         return obj.health / 5 if obj.team == state.our_team else -obj.health / 5
     return 0
 
+
 def robot(state, unit):
-    print(len(network.get_parameters()))
     global shared_state
 
-    inputs = [float(unit.coords.x) / 19, float(unit.coords.y) / 19] + [
+    x = (float(unit.coords.x) - 10) / 10
+    y = (float(unit.coords.y) - 10) / 10
+    r = math.sqrt(x * x + y * y)
+    inputs = [x, y, r] + [
         health_by_coords(state, coord) for coord in unit.coords.coords_around()
     ] + shared_state
 
     output = network.forward(inputs)
     action_value, direction_value = output[:2]
-    action_value, direction_value = (1 + action_value) / 2, (1 + direction_value) / 2
-    shared_updates = output[2:]
+    action_value, direction_value = (1 + math.tanh(action_value)) / 2, (1 + math.tanh(direction_value)) / 2
+
+    memory_decay = (1 + math.tanh(output[2])) / 2
+    shared_updates = output[3:]
+    shared_state[:] = [
+        math.tanh(memory_decay * s + (1 - memory_decay) * u)
+        for s, u in zip(shared_state, shared_updates)
+    ]
 
     action_type = ActionType.Move if action_value > 0.5 else ActionType.Attack
     direction = (
@@ -130,11 +142,4 @@ def robot(state, unit):
         Direction.East if direction_value < 0.75 else
         Direction.West
     )
-
-    memory_decay = 0.8
-    shared_state[:] = [
-        math.tanh(memory_decay * s + (1 - memory_decay) * u)
-        for s, u in zip(shared_state, shared_updates)
-    ]
-
     return Action.move(direction) if action_type == ActionType.Move else Action.attack(direction)
