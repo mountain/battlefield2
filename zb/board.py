@@ -52,8 +52,8 @@ def match():
         elif result.find('Done! Blue won') > -1:
             blue_score = max(int(rc.zscore('board', blue_id)), 1)
             red_score = max(int(rc.zscore('board', red_id)), 1)
-            bscore = int(log(blue_score))
-            rscore = int(log(red_score / (blue_score + 1)))
+            bscore = int(log(blue_score)) + 1
+            rscore = int(log(red_score / (blue_score + 1))) + 1
             rc.zincrby('board', rscore, blue_id)
             rc.zincrby('board', -bscore, red_id)
             rc.incr('match:%06d:%06d' % (blue_id, red_id), 1)
@@ -67,8 +67,8 @@ def match():
         elif result.find('Done! Red won') > -1:
             blue_score = max(int(rc.zscore('board', blue_id)), 1)
             red_score = max(int(rc.zscore('board', red_id)), 1)
-            bscore = int(log(blue_score))
-            rscore = int(log(red_score / (blue_score + 1)))
+            bscore = int(log(blue_score)) + 1
+            rscore = int(log(red_score / (blue_score + 1))) + 1
             rc.zincrby('board', -rscore, blue_id)
             rc.zincrby('board', bscore, red_id)
             rc.incr('match:%06d:%06d' % (red_id, blue_id), 1)
