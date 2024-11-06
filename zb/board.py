@@ -13,11 +13,20 @@ def init(d):
         Bot.next()
 
 
+def add(delta):
+    d = int(rc.get('board:diversity')) + delta
+    from zb.bot import Bot
+    rc.set('board:diversity', d)
+    for _ in range(int(str(delta))):
+        Bot.next()
+
+
 @job('match', connection=rc, timeout=TIMEOUT+1)
 def match():
     import subprocess
     from random import random, sample
     from zb.bot import Bot
+    from math import log
 
     try:
         seeds = []
@@ -41,8 +50,12 @@ def match():
             rc.zincrby('board', 0, blue_id)
             rc.zincrby('board', 0, red_id)
         elif result.find('Done! Blue won') > -1:
-            rc.zincrby('board', 1, blue_id)
-            rc.zincrby('board', -1, red_id)
+            blue_score = max(int(rc.zscore('board', blue_id)), 1)
+            red_score = max(int(rc.zscore('board', red_id)), 1)
+            bscore = int(log(blue_score))
+            rscore = int(log(red_score / (blue_score + 1)))
+            rc.zincrby('board', rscore, blue_id)
+            rc.zincrby('board', -bscore, red_id)
             rc.incr('match:%06d:%06d' % (blue_id, red_id), 1)
             rc.incr('match:%06d:%06d' % (red_id, blue_id), -1)
             if random() > 0.9:
@@ -52,8 +65,12 @@ def match():
             if random() > 0.99:
                 blue.swallow(red)
         elif result.find('Done! Red won') > -1:
-            rc.zincrby('board', -1, blue_id)
-            rc.zincrby('board', 1, red_id)
+            blue_score = max(int(rc.zscore('board', blue_id)), 1)
+            red_score = max(int(rc.zscore('board', red_id)), 1)
+            bscore = int(log(blue_score))
+            rscore = int(log(red_score / (blue_score + 1)))
+            rc.zincrby('board', -rscore, blue_id)
+            rc.zincrby('board', bscore, red_id)
             rc.incr('match:%06d:%06d' % (red_id, blue_id), 1)
             rc.incr('match:%06d:%06d' % (blue_id, red_id), -1)
             if random() > 0.9:

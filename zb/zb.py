@@ -10,6 +10,9 @@ subparsers = parser.add_subparsers(dest="command")
 init_parser = subparsers.add_parser('init')
 init_parser.add_argument('-n', '--diversity', default=1000, type=int)
 
+init_parser = subparsers.add_parser('add')
+init_parser.add_argument('-d', '--delta', default=1000, type=int)
+
 run_parser = subparsers.add_parser('run')
 run_parser.add_argument('-n', '--round', default=1000, type=int)
 
@@ -54,10 +57,12 @@ def pooled_proc(args):
 
 if __name__ == '__main__':
     import sys
-    from zb.board import init, match, summary, peek, poke, benchmark, play
+    from zb.board import init, add, match, summary, peek, poke, benchmark, play
     opts = parser.parse_args(sys.argv[1:])
     if opts.command == 'init':
         init(opts.diversity)
+    if opts.command == 'add':
+        add(opts.delta)
     if opts.command == 'run':
         for _ in range(int(opts.round)):
             match.delay()
