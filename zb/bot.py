@@ -103,7 +103,10 @@ class Bot:
             seq[idx] = random.uniform(-1, 1)
             return compress_floats(seq)
 
-        policy = mutate_seq(self.policy)
+        length = int(len(decompress_floats(self.policy)) * 0.05) + 1 # 5% mutation
+        policy = self.policy
+        for _ in range(length):
+            policy = mutate_seq(policy)
         Bot.create(policy)
 
     def crossover(self, other):
