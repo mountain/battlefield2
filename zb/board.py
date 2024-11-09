@@ -131,6 +131,7 @@ def teach(student_id, teacher, teacher_file, reward=1):
             for _ in range(reward):
                 blue.mutate()
         elif result.find('Done! Red won') > -1:
+            rc.zincrby('board', -1, student_id)
             rc.incr('exam:%s:%06d' % (teacher, student_id), 1)
     except Exception as e:
         import traceback
@@ -157,10 +158,11 @@ def teach(student_id, teacher, teacher_file, reward=1):
 
 @job('exam', connection=rc, timeout=4 * TIMEOUT+1)
 def exam(student_id):
-    teach(student_id, 'simple-bot', 'robots/simple-bot.js', reward=1)
-    teach(student_id, 'random-bot', 'robots/random-bot.js', reward=2)
-    teach(student_id, 'flail', 'robots/flail.js', reward=3)
-    teach(student_id, 'chaser', 'robots/chaser.js', reward=4)
+    # teach(student_id, 'simple-bot', 'robots/simple-bot.js', reward=1)
+    # teach(student_id, 'random-bot', 'robots/random-bot.js', reward=2)
+    teach(student_id, 'flail', 'robots/flail.js', reward=1)
+    teach(student_id, 'chaser', 'robots/chaser.js', reward=2)
+    teach(student_id, 'black-magic', 'robots/black_magic.js', reward=5)
 
 
 def peek(bid):
