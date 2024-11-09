@@ -99,14 +99,12 @@ class Bot:
     def mutate(self):
         def mutate_seq(seq):
             seq = decompress_floats(seq)
-            idx = random.randint(0, len(seq) - 1)
-            seq[idx] = random.uniform(-1, 1)
+            for _ in range(int(len(seq) * 0.05) + 1):
+                idx = random.randint(0, len(seq) - 1)
+                seq[idx] = random.uniform(-1, 1)
             return compress_floats(seq)
 
-        length = int(len(decompress_floats(self.policy)) * 0.05) + 1 # 5% mutation
-        policy = self.policy
-        for _ in range(length):
-            policy = mutate_seq(policy)
+        policy = mutate_seq(self.policy)
         Bot.create(policy)
 
     def crossover(self, other):
