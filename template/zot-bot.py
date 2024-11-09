@@ -201,8 +201,8 @@ def robot(state, unit) -> Action:
         health_by_coords(state, coord) for coord in unit.coords.coords_around()
     ]
 
-    x = (float(unit.coords.x) - 10) / 10
-    y = (float(unit.coords.y) - 10) / 10
+    x = (float(unit.coords.x) - 9) / 9
+    y = (float(unit.coords.y) - 9) / 9
     r = math.sqrt(x * x + y * y)
 
     ours = len(state.ids_by_team(state.our_team))
