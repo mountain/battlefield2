@@ -3,7 +3,6 @@ import math
 import struct
 from typing import List, Generator
 
-
 BASE62_ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 
 
@@ -114,17 +113,10 @@ class NeuralNetwork:
 
 
 shared_state: List[float] = [0.0, 0.0, 0.0, 0.0]
-network = NeuralNetwork(input_size=18, hidden_size=36, output_size=9)
+network = NeuralNetwork(input_size=24, hidden_size=36, output_size=9)
 network.set_parameters(decompress_floats("""
 %s
 """))
-
-
-def health_by_coords(state, coord) -> float:
-    obj = state.obj_by_coords(coord)
-    if obj and obj.team is not None:
-        return obj.health / 5 if obj.team == state.our_team else -obj.health / 5
-    return 0
 
 
 def enterable(state, unit, direction) -> bool:
@@ -148,6 +140,45 @@ def enterable(state, unit, direction) -> bool:
     )
     occupied = state.obj_by_coords(Coords(x, y))
     return not occupied and not inaccessible
+
+
+def health_by_coords(state, coord) -> float:
+    obj = state.obj_by_coords(coord)
+    if obj and obj.team is not None:
+        return obj.health / 5 if obj.team == state.our_team else -obj.health / 5
+    return 0
+
+
+def calculate_torque_vector(state, unit) -> List[float]:
+    our_torque_x = 0.0
+    our_torque_y = 0.0
+    enemy_torque_x = 0.0
+    enemy_torque_y = 0.0
+
+    center_x, center_y = unit.coords.x, unit.coords.y
+
+    for obj in state.objs_by_team(state.our_team):
+        delta_x = obj.coords.x - center_x
+        delta_y = obj.coords.y - center_y
+
+        torque_x = obj.health * delta_x
+        torque_y = obj.health * delta_y
+        our_torque_x += torque_x / 9 / 5
+        our_torque_y += torque_y / 9 / 5
+
+    for obj in state.objs_by_team(state.other_team):
+        delta_x = obj.coords.x - center_x
+        delta_y = obj.coords.y - center_y
+
+        torque_x = obj.health * delta_x
+        torque_y = obj.health * delta_y
+        enemy_torque_x += torque_x / 9 / 5
+        enemy_torque_y += torque_y / 9 / 5
+
+    total_torque_x = our_torque_x + enemy_torque_x
+    total_torque_y = our_torque_y + enemy_torque_y
+
+    return [enemy_torque_x, enemy_torque_y, our_torque_x, our_torque_y, total_torque_x, total_torque_y]
 
 
 def choose_direction_based_on_probability(direction_value: List[float]) -> Generator[Direction, None, None]:
@@ -197,9 +228,10 @@ def robot(state, unit) -> Action:
         if closest_distance == 1 and (unit.health >= closest_enemy.health):
             return Action.attack(closest_direction)
 
-    health_around_matrix = [
+    around_matrix = [
         health_by_coords(state, coord) for coord in unit.coords.coords_around()
     ]
+    torque = calculate_torque_vector(state, unit)
 
     x = (float(unit.coords.x) - 9) / 9
     y = (float(unit.coords.y) - 9) / 9
@@ -210,7 +242,7 @@ def robot(state, unit) -> Action:
     alpha = (ours + others) / 249
     beta = (ours + 1) / (others + 1)
 
-    inputs = [x, y, r, alpha, beta] + health_around_matrix + shared_state
+    inputs = [x, y, r, alpha, beta] + around_matrix + torque + shared_state
     output = network.forward(inputs)
     direction_value, shared_updates, decay = output[0:4], output[4:8], output[8]
 
