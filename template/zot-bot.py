@@ -113,7 +113,7 @@ class NeuralNetwork:
 
 
 shared_state: List[float] = [0.0, 0.0, 0.0, 0.0]
-network = NeuralNetwork(input_size=24, hidden_size=36, output_size=9)
+network = NeuralNetwork(input_size=17, hidden_size=27, output_size=9)
 network.set_parameters(decompress_floats("""
 %s
 """))
@@ -175,10 +175,7 @@ def calculate_torque_vector(state, unit) -> List[float]:
         enemy_torque_x += torque_x / 9 / 5
         enemy_torque_y += torque_y / 9 / 5
 
-    total_torque_x = our_torque_x + enemy_torque_x
-    total_torque_y = our_torque_y + enemy_torque_y
-
-    return [enemy_torque_x, enemy_torque_y, our_torque_x, our_torque_y, total_torque_x, total_torque_y]
+    return [-enemy_torque_x, -enemy_torque_y, our_torque_x, our_torque_y]
 
 
 def choose_direction_based_on_probability(direction_value: List[float]) -> Generator[Direction, None, None]:
