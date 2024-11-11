@@ -93,9 +93,11 @@ make a benchmark between bot with bid 1234 and the buildin random-bot
 zb benchmark -b 1234 -t random-bot -n 200
 ```
 
-currently only two buildin bot are supported
+currently only four buildin bot are supported
 * random-bot
+* flail
 * chaser
+* black-magic
 
 #### play 
 make a play between bot with bid 1234 and the buildin random-bot
