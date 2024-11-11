@@ -108,7 +108,9 @@ zb play -b 1234 -t random-bot -m web
 
 currently only two buildin bot are supported
 * random-bot
+* flail
 * chaser
+* black-magic
 
 two mode are supported
 * term
