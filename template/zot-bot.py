@@ -228,7 +228,7 @@ def robot(state, unit) -> Action:
 
     if action_value > 0 and closest_distance == 1:
         direction = choose_direction_based_on_probability(direction_value)
-        return Action.attack(direction.next())
+        return Action.attack(next(direction))
     else:
         for direction in choose_direction_based_on_probability(direction_value):
             if enterable(state, unit, direction):
