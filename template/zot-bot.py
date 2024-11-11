@@ -161,7 +161,6 @@ def choose_direction_based_on_probability(direction_value: List[float]) -> Gener
 
 
 def robot(state, unit) -> Action:
-    print(len(network.get_parameters()))
     global shared_state
 
     upper_border = 5 <= unit.coords.x <= 13 and unit.coords.y == 1
@@ -227,17 +226,17 @@ def robot(state, unit) -> Action:
         for s, u in zip(shared_state, shared_updates)
     ]
 
-    if action_value > 0:
+    if action_value > 0 and closest_distance == 1:
         direction = choose_direction_based_on_probability(direction_value)
-        return Action.attack(direction)
-
-    for direction in choose_direction_based_on_probability(direction_value):
-        if enterable(state, unit, direction):
-            return Action.move(direction)
+        return Action.attack(direction.next())
+    else:
+        for direction in choose_direction_based_on_probability(direction_value):
+            if enterable(state, unit, direction):
+                return Action.move(direction)
 
     return Action.move(random.choice([
         Direction.South,
         Direction.West,
         Direction.North,
-        Direction.West,
+        Direction.East,
     ]))
