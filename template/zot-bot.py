@@ -2,6 +2,7 @@ import random
 import math
 import struct
 from typing import List, Generator
+ 
 
 BASE62_ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 
@@ -113,7 +114,7 @@ class NeuralNetwork:
 
 
 shared_state: List[float] = [0.0, 0.0, 0.0, 0.0]
-network = NeuralNetwork(input_size=17, hidden_size=27, output_size=9)
+network = NeuralNetwork(input_size=32, hidden_size=32, output_size=10)
 network.set_parameters(decompress_floats("""
 %s
 """))
@@ -149,35 +150,6 @@ def health_by_coords(state, coord) -> float:
     return 0
 
 
-def calculate_torque_vector(state, unit) -> List[float]:
-    our_torque_x = 0.0
-    our_torque_y = 0.0
-    enemy_torque_x = 0.0
-    enemy_torque_y = 0.0
-
-    center_x, center_y = unit.coords.x, unit.coords.y
-
-    for obj in state.objs_by_team(state.our_team):
-        delta_x = obj.coords.x - center_x
-        delta_y = obj.coords.y - center_y
-
-        torque_x = obj.health * delta_x
-        torque_y = obj.health * delta_y
-        our_torque_x += torque_x / 9 / 5
-        our_torque_y += torque_y / 9 / 5
-
-    for obj in state.objs_by_team(state.other_team):
-        delta_x = obj.coords.x - center_x
-        delta_y = obj.coords.y - center_y
-
-        torque_x = obj.health * delta_x
-        torque_y = obj.health * delta_y
-        enemy_torque_x += torque_x / 9 / 5
-        enemy_torque_y += torque_y / 9 / 5
-
-    return [-enemy_torque_x, -enemy_torque_y, our_torque_x, our_torque_y]
-
-
 def choose_direction_based_on_probability(direction_value: List[float]) -> Generator[Direction, None, None]:
     direction_table = [Direction.North, Direction.South, Direction.East, Direction.West]
     probabilities = softmax(direction_value)
@@ -189,6 +161,7 @@ def choose_direction_based_on_probability(direction_value: List[float]) -> Gener
 
 
 def robot(state, unit) -> Action:
+    print(len(network.get_parameters()))
     global shared_state
 
     upper_border = 5 <= unit.coords.x <= 13 and unit.coords.y == 1
@@ -222,13 +195,15 @@ def robot(state, unit) -> Action:
     if closest_enemy:
         closest_distance = closest_enemy.coords.distance_to(unit.coords)
         closest_direction = unit.coords.direction_to(closest_enemy.coords)
-        if closest_distance == 1 and (unit.health >= closest_enemy.health):
+        if closest_distance == 1 and (unit.health > closest_enemy.health):
             return Action.attack(closest_direction)
 
     around_matrix = [
         health_by_coords(state, coord) for coord in unit.coords.coords_around()
-    ]
-    torque = calculate_torque_vector(state, unit)
+    ] # length 4
+    around_matrix_2nd = [
+        health_by_coords(state, coord2nd) for coord in unit.coords.coords_around() for coord2nd in coord.coords_around()
+    ] # length 16
 
     x = (float(unit.coords.x) - 9) / 9
     y = (float(unit.coords.y) - 9) / 9
@@ -236,12 +211,15 @@ def robot(state, unit) -> Action:
 
     ours = len(state.ids_by_team(state.our_team))
     others = len(state.ids_by_team(state.other_team))
+    ours_health = sum([u.health for u in state.objs_by_team(state.our_team)])
+    others_health = sum([u.health for u in state.objs_by_team(state.other_team)])
     alpha = (ours + others) / 249
     beta = (ours + 1) / (others + 1)
+    gamma = (ours_health + 1) / (others_health + 1)
 
-    inputs = [x, y, r, alpha, beta] + around_matrix + torque + shared_state
+    inputs = [x, y, x + y, x - y, r, alpha, beta, gamma] + around_matrix + around_matrix_2nd + shared_state
     output = network.forward(inputs)
-    direction_value, shared_updates, decay = output[0:4], output[4:8], output[8]
+    action_value, direction_value, shared_updates, decay = output[0], output[1:5], output[5:9], output[9]
 
     decay = sigmoid(decay)
     shared_state[:] = [
@@ -249,13 +227,17 @@ def robot(state, unit) -> Action:
         for s, u in zip(shared_state, shared_updates)
     ]
 
+    if action_value > 0:
+        direction = choose_direction_based_on_probability(direction_value)
+        return Action.attack(direction)
+
     for direction in choose_direction_based_on_probability(direction_value):
         if enterable(state, unit, direction):
             return Action.move(direction)
 
     return Action.move(random.choice([
-        Direction.North,
         Direction.South,
-        Direction.East,
+        Direction.West,
+        Direction.North,
         Direction.West,
     ]))
