@@ -158,11 +158,11 @@ def teach(student_id, teacher, teacher_file, reward=1):
 
 @job('exam', connection=rc, timeout=4 * TIMEOUT+1)
 def exam(student_id):
-    # teach(student_id, 'simple-bot', 'robots/simple-bot.js', reward=1)
-    # teach(student_id, 'random-bot', 'robots/random-bot.js', reward=2)
-    teach(student_id, 'flail', 'robots/flail.js', reward=1)
-    teach(student_id, 'chaser', 'robots/chaser.js', reward=2)
-    teach(student_id, 'black-magic', 'robots/black_magic.js', reward=5)
+    teach(student_id, 'simple-bot', 'robots/simple-bot.js', reward=1)
+    teach(student_id, 'random-bot', 'robots/random-bot.js', reward=2)
+    teach(student_id, 'flail', 'robots/flail.js', reward=4)
+    teach(student_id, 'chaser', 'robots/chaser.js', reward=8)
+    teach(student_id, 'black-magic', 'robots/black_magic.js', reward=16)
 
 
 def peek(bid):
