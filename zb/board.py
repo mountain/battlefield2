@@ -6,6 +6,10 @@ TIMEOUT = 120
 diversity = int(rc.get('board:diversity')) if rc.exists('board:diversity') else 1000
 
 
+def get_diversity():
+    return int(rc.get("board:diversity"))
+
+
 def init(d):
     from zb.bot import Bot
     rc.set('board:diversity', d)
@@ -96,19 +100,20 @@ def match():
         red.unlink()
 
         try:
+            d = get_diversity()
             rc.zremrangebyscore('board', -100, 0)
             card = rc.zcard('board')
-            if card > diversity:
-                rc.zpopmin('board', card - diversity)
+            if card > d:
+                rc.zpopmin('board', card - d)
             else:
-                while card < diversity:
+                while card < d:
                     Bot.next()
                     card += 1
         except:
             pass
 
 
-def teach(student_id, teacher, teacher_file, reward=1):
+def teach(student_id, teacher, teacher_file, reward=1, penalty=0):
     import subprocess
     from zb.bot import Bot
 
@@ -131,7 +136,7 @@ def teach(student_id, teacher, teacher_file, reward=1):
             for _ in range(reward):
                 blue.mutate()
         elif result.find('Done! Red won') > -1:
-            rc.zincrby('board', -1, student_id)
+            rc.zincrby('board', penalty, student_id)
             rc.incr('exam:%s:%06d' % (teacher, student_id), 1)
     except Exception as e:
         import traceback
@@ -144,25 +149,29 @@ def teach(student_id, teacher, teacher_file, reward=1):
     finally:
         blue.unlink()
         try:
+            d = get_diversity()
             rc.zremrangebyscore('board', -100, 0)
             card = rc.zcard('board')
-            if card > diversity:
-                rc.zpopmin('board', card - diversity)
+            if card > d:
+                rc.zpopmin('board', card - d)
             else:
-                while card < diversity:
+                while card < d:
                     Bot.next()
                     card += 1
         except:
             pass
 
 
+
 @job('exam', connection=rc, timeout=4 * TIMEOUT+1)
 def exam(student_id):
-    teach(student_id, 'simple-bot', 'robots/simple-bot.js', reward=1)
-    teach(student_id, 'random-bot', 'robots/random-bot.js', reward=2)
-    teach(student_id, 'flail', 'robots/flail.js', reward=4)
-    teach(student_id, 'chaser', 'robots/chaser.js', reward=8)
-    teach(student_id, 'black-magic', 'robots/black_magic.js', reward=16)
+    # teach(student_id, 'simple-bot', 'robots/simple-bot.js', reward=1, penalty=-1)
+    # teach(student_id, 'random-bot', 'robots/random-bot.js', reward=2, penalty=-1)
+    teach(student_id, 'flail', 'robots/flail.js', reward=1, penalty=-5)
+    teach(student_id, 'heuristic', 'robots/heuristic.js', reward=2, penalty=-4)
+    teach(student_id, 'chaser', 'robots/chaser.js', reward=4, penalty=-3)
+    teach(student_id, 'neuralbot4', 'robots/neuralbot4.py', reward=8, penalty=-2)
+    teach(student_id, 'black-magic', 'robots/black_magic.js', reward=16, penalty=-1)
 
 
 def peek(bid):
