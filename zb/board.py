@@ -167,11 +167,14 @@ def teach(student_id, teacher, teacher_file, reward=1, penalty=0):
 def exam(student_id):
     # teach(student_id, 'simple-bot', 'robots/simple-bot.js', reward=1, penalty=-1)
     # teach(student_id, 'random-bot', 'robots/random-bot.js', reward=2, penalty=-1)
-    teach(student_id, 'flail', 'robots/flail.js', reward=1, penalty=-5)
-    teach(student_id, 'heuristic', 'robots/heuristic.js', reward=2, penalty=-4)
-    teach(student_id, 'chaser', 'robots/chaser.js', reward=4, penalty=-3)
-    teach(student_id, 'neuralbot4', 'robots/neuralbot4.py', reward=8, penalty=-2)
-    teach(student_id, 'black-magic', 'robots/black_magic.js', reward=16, penalty=-1)
+    # teach(student_id, 'flail', 'robots/flail.js', reward=1, penalty=-5)
+    # teach(student_id, 'heuristic', 'robots/heuristic.js', reward=2, penalty=-4)
+    teach(student_id, 'chaser', 'robots/chaser.js', reward=1, penalty=-6)
+    teach(student_id, 'neuralbot4', 'robots/neuralbot4.py', reward=2, penalty=-5)
+    teach(student_id, 'black-magic', 'robots/black_magic.js', reward=4, penalty=-4)
+    teach(student_id, 'seven-of-nine', 'robots/seven_of_nine.py', reward=8, penalty=-3)
+    teach(student_id, 'we-are-borg', 'robots/we_are_borg.py', reward=16, penalty=-2)
+    teach(student_id, 'gigachad', 'robots/gigachad.py', reward=32, penalty=-1)
 
 
 def peek(bid):
