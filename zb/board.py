@@ -25,6 +25,35 @@ def add(delta):
         Bot.next()
 
 
+def cleanup_bot(bid, archive=False):
+    if archive:
+        # archive_bot(bid)
+        pass
+    else:
+        rc.delete(f'bot:{bid:06d}:policy')
+        rc.delete(f'match:{bid:06d}')
+        rc.delete(f'exam:{bid:06d}')
+
+
+def maintain_board():
+    d = get_diversity()
+    rc.zremrangebyscore('board', -100, 0)
+    card = rc.zcard('board')
+
+    for key, _ in rc.zscan_iter('board', score_cast_func=int):
+        if int(rc.zscore('board', key)) <= 0:
+            cleanup_bot(int(key))
+
+    if card > d:
+        removed = rc.zpopmin('board', card - d)
+        for bid, _ in removed:
+            cleanup_bot(int(bid))
+
+    elif card < d:
+        for _ in range(d - card):
+            Bot.next()
+
+
 @job('match', connection=rc, timeout=TIMEOUT+1)
 def match():
     import subprocess
@@ -98,17 +127,8 @@ def match():
     finally:
         blue.unlink()
         red.unlink()
-
         try:
-            d = get_diversity()
-            rc.zremrangebyscore('board', -100, 0)
-            card = rc.zcard('board')
-            if card > d:
-                rc.zpopmin('board', card - d)
-            else:
-                while card < d:
-                    Bot.next()
-                    card += 1
+            maintain_board()
         except:
             pass
 
@@ -149,18 +169,9 @@ def teach(student_id, teacher, teacher_file, reward=1, penalty=0):
     finally:
         blue.unlink()
         try:
-            d = get_diversity()
-            rc.zremrangebyscore('board', -100, 0)
-            card = rc.zcard('board')
-            if card > d:
-                rc.zpopmin('board', card - d)
-            else:
-                while card < d:
-                    Bot.next()
-                    card += 1
+            maintain_board()
         except:
             pass
-
 
 
 @job('exam', connection=rc, timeout=4 * TIMEOUT+1)
