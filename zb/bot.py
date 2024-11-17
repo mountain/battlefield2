@@ -45,6 +45,15 @@ def decompress_floats(encoded_data):
     return [(q / 32767.5) - 1 for q in quantized]
 
 
+def default_score():
+    scores = [score for _, score in rc.zscan_iter('board', score_cast_func=int)]
+    if not scores:
+        return 1
+    scores.sort()
+    index = max(0, len(scores) // 5 - 1)
+    return scores[index] + 1
+
+
 class Bot:
     @classmethod
     def fetch(cls, bid):
@@ -67,8 +76,9 @@ class Bot:
         if bid < 0:
             raise Exception(bid)
 
+        default = default_score()
         rc.set('bot:%06d:policy' % int(bid), policy)
-        rc.zadd('board', {bid: 20})
+        rc.zadd('board', {bid: default})
         return cls(bid, policy)
 
     @classmethod
